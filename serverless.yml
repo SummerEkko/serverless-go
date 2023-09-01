@@ -1,0 +1,86 @@
+app: aws-golang-rest-api-with-dynamodb
+service: aws-golang-rest-api-with-dynamodb
+
+frameworkVersion: ">=2.24.0"
+
+provider:
+  name: aws
+  runtime: go1.x
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+functions:
+  create:
+    handler: functions/bin/createItem
+    package:
+      include:
+        - ./functions/bin/createItem
+    events:
+      - http:
+          path: todos
+          method: post
+          cors: true
+
+  get:
+    handler: functions/bin/getItem
+    package:
+      include:
+        - ./functions/bin/getItem
+    events:
+      - http:
+          path: todos/{id}
+          method: get
+          cors: true
+
+  update:
+    handler: functions/bin/updateItem
+    package:
+      include:
+        - ./functions/bin/updateItem
+    events:
+      - http:
+          path: todos/{id}
+          method: put
+          cors: true
+
+  delete:
+    handler: functions/bin/deleteItem
+    package:
+      include:
+        - ./functions/bin/deleteItem
+    events:
+      - http:
+          path: todos/{id}
+          method: delete
+          cors: true
+
+resources:
+  Resources:
+    TodosDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: id
+            AttributeType: N
+        KeySchema:
+          -
+            AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
